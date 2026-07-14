@@ -1,0 +1,19 @@
+## Managed dependencies for the AMOLED 2.06 firmware.
+## The Waveshare BSP provides the CO5300 QSPI panel bring-up + LVGL port, so we
+## never hand-roll display init. eye_core (board-agnostic) is pulled in locally
+## via EXTRA_COMPONENT_DIRS in the project CMakeLists, not from the registry.
+##
+## Versions are pinned to the exact set proven in the ScreenStreamWatch project.
+## In particular esp_lvgl_port MUST stay at 2.7.2: newer 2.x releases reference
+## LV_COLOR_FORMAT_RGB565_SWAPPED, which does not exist in LVGL 9.2.0 and breaks
+## the build.
+dependencies:
+  idf:
+    version: ">=5.3"
+  waveshare/esp32_s3_touch_amoled_2_06:
+    version: "1.0.6"
+  espressif/esp_lvgl_port:
+    version: "2.7.2"
+  lvgl/lvgl:
+    version: "9.2.0"
+    public: true

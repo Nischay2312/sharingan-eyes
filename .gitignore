@@ -1,0 +1,26 @@
+# ESP-IDF build outputs
+build/
+build_*/
+
+# Downloaded component manager dependencies (restored via idf_component.yml + dependencies.lock)
+managed_components/
+
+# IDF generated sdkconfig in build dir (not the board-specific source ones)
+/sdkconfig
+
+# Compiled artefacts
+*.bin
+*.elf
+*.map
+*.a
+*.o
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Editor / OS
+.vscode/settings.json
+*.DS_Store
+Thumbs.db

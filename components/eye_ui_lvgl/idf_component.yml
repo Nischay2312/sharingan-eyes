@@ -1,0 +1,11 @@
+## Pinned to the set proven on the AMOLED: esp_lvgl_port MUST stay 2.7.2
+## (newer 2.x reference LV_COLOR_FORMAT_RGB565_SWAPPED, absent in LVGL 9.2.0).
+dependencies:
+  idf:
+    version: ">=5.3"
+  lvgl/lvgl:
+    version: "9.2.0"
+    public: true
+  espressif/esp_lvgl_port:
+    version: "2.7.2"
+    public: true

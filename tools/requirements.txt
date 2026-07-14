@@ -1,0 +1,8 @@
+# PC-side deps for the tools/ scripts.
+pillow
+numpy
+# eye_animator.py (generate dojutsu clips): vector renderer
+skia-python
+# Only needed for video inputs (mp4/mov/etc.); GIF/PNG/WebP work without these:
+imageio
+imageio-ffmpeg

@@ -1,0 +1,19 @@
+## Managed dependencies for the 1.28" round (GC9A01) firmware.
+## eye_core / eye_web / eye_ui_lvgl are pulled in locally via
+## EXTRA_COMPONENT_DIRS in the project CMakeLists, not from the registry.
+## lvgl + esp_lvgl_port are pinned to the exact set proven on the AMOLED:
+## esp_lvgl_port MUST stay 2.7.2 (newer 2.x reference
+## LV_COLOR_FORMAT_RGB565_SWAPPED, which LVGL 9.2.0 does not have).
+dependencies:
+  idf:
+    version: ">=5.3"
+  espressif/esp_lcd_gc9a01:
+    version: "*"
+  espressif/esp_lcd_touch_cst816s:
+    version: "^1"
+  lvgl/lvgl:
+    version: "9.2.0"
+    public: true
+  espressif/esp_lvgl_port:
+    version: "2.7.2"
+    public: true

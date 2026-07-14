@@ -1,0 +1,4 @@
+## eye_core managed dependencies. esp_new_jpeg decodes MJPEG clip frames.
+dependencies:
+  espressif/esp_new_jpeg:
+    version: "*"

@@ -1,0 +1,64 @@
+# Waveshare ESP32-S3-Touch-AMOLED-2.06 (ESP32-S3R8: octal PSRAM, 32MB flash).
+# Mirrors the proven ScreenStreamWatch display/PSRAM settings.
+CONFIG_IDF_TARGET="esp32s3"
+
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+
+# Partition CSV path is relative to the project root (this repo's top folder).
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="boards/amoled_2_06/partitions.csv"
+CONFIG_PARTITION_TABLE_FILENAME="boards/amoled_2_06/partitions.csv"
+
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+CONFIG_FREERTOS_HZ=1000
+
+# Console over the ESP32-S3 built-in USB Serial/JTAG (GPIO19=D-, GPIO20=D+), so
+# both log OUTPUT and command INPUT work over the USB-C port. The board does not
+# break out UART0, and the default UART console leaves USB as output-only.
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+# CONFIG_ESP_CONSOLE_UART_DEFAULT is not set
+# CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG is not set
+
+# Octal PSRAM (eye framebuffers + scaled output buffer live here).
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_FETCH_INSTRUCTIONS=y
+CONFIG_SPIRAM_RODATA=y
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=4096
+# The LVGL draw buffer (295x50x2 = 29.5 KB) lands in PSRAM because it exceeds
+# the 4096-byte threshold above. SPI LCD DMA can't access PSRAM, so every flush
+# allocates a 29.5 KB DMA bounce buffer from internal SRAM. Under WiFi Block-Ack
+# load the normal internal heap is tight; this 40 KB reserved pool ensures the
+# bounce buffer can always be satisfied without starving WiFi or httpd.
+CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL=40960
+CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
+
+# LVGL (matches the BSP/streamer config).
+CONFIG_LV_USE_CLIB_MALLOC=y
+CONFIG_LV_USE_CLIB_STRING=y
+CONFIG_LV_USE_CLIB_SPRINTF=y
+CONFIG_LV_DEF_REFR_PERIOD=15
+CONFIG_LV_OS_FREERTOS=y
+CONFIG_LV_DRAW_SW_DRAW_UNIT_CNT=2
+CONFIG_LV_ATTRIBUTE_FAST_MEM_USE_IRAM=y
+# 20 rows × 295 px × 2 bytes = 11.8 KB per buffer; with buff_dma=true that is
+# ~23.6 KB of DMA-capable internal SRAM total — small enough to coexist with
+# WiFi's internal SRAM needs while still keeping the SPI directly addressable.
+CONFIG_BSP_DISPLAY_LVGL_BUF_HEIGHT=20
+
+# Larger Montserrat sizes for the native info screen (title + battery %).
+CONFIG_LV_FONT_MONTSERRAT_20=y
+CONFIG_LV_FONT_MONTSERRAT_28=y
+
+# SD card holds the video clip (/sdcard/eye/anim.eyv). LFN for nested paths.
+CONFIG_BSP_SD_MOUNT_POINT="/sdcard"
+CONFIG_FATFS_LFN_HEAP=y
+
+# The sys_evt task (default 2304 B) overflows when the log vprintf hook runs
+# inside WiFi event handlers. 4096 B gives comfortable headroom.
+CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=4096
+
+CONFIG_IDF_EXPERIMENTAL_FEATURES=y

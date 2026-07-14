@@ -1,0 +1,320 @@
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sharingan Eye</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,Segoe UI,sans-serif;background:#0a0a0f;color:#e8e8f0;max-width:560px;margin:0 auto;padding:14px}
+h1{color:#e0141b;font-size:22px;letter-spacing:2px;text-align:center;margin:6px 0 10px}
+.sel{background:#12121a;border-radius:12px;padding:10px;margin-bottom:10px}
+.sel .hd{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pills button{padding:8px 12px;background:#1a1a26;color:#bbb;border:1px solid #24242f;border-radius:20px;font-size:13px;cursor:pointer}
+.pills button.on{background:#2a0a0d;color:#e0141b;border-color:#e0141b;font-weight:bold}
+.pills button .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#46dc5a;margin-right:5px;vertical-align:middle}
+.pills button .dot.off{background:#555}
+.tabs{display:flex;gap:4px;margin-bottom:12px}
+.tabs button{flex:1;padding:10px 2px;background:#16161f;color:#888;border:none;border-radius:10px;font-size:13px;cursor:pointer}
+.tabs button.on{background:#2a0a0d;color:#e0141b;font-weight:bold}
+.card{background:#12121a;border-radius:14px;padding:14px;margin-bottom:10px}
+.card h3{font-size:13px;color:#888;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px}
+.row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:15px}
+.row .k{color:#888}
+.note{color:#888;font-size:13px;padding:4px 0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid button,.list button{padding:12px 6px;background:#1a1a26;color:#ddd;border:1px solid #24242f;border-radius:10px;font-size:14px;cursor:pointer}
+.grid button.on,.list button.on{border-color:#e0141b;color:#e0141b;font-weight:bold}
+.list{display:flex;flex-direction:column;gap:6px}
+.list-item{display:flex;gap:6px;align-items:stretch}
+.list-item .play{flex:1;text-align:left}
+.del-btn{padding:12px 10px;background:#1a1a26;color:#555;border:1px solid #24242f;border-radius:10px;font-size:13px;cursor:pointer}
+.del-btn:hover{color:#e0141b;border-color:#e0141b}
+.slider{margin:8px 0}
+.slider label{display:flex;justify-content:space-between;font-size:13px;color:#aaa;margin-bottom:2px}
+input[type=range]{width:100%;accent-color:#e0141b}
+input[type=color]{width:100%;height:44px;border:none;border-radius:10px;background:#1a1a26}
+input[type=text],input[type=password]{width:100%;padding:11px;margin-top:8px;border:1px solid #24242f;border-radius:10px;background:#1a1a26;color:#eee;font-size:15px}
+select{width:100%;padding:11px;border:1px solid #24242f;border-radius:10px;background:#1a1a26;color:#eee;font-size:15px}
+.btn{width:100%;padding:12px;background:#1a1a26;color:#ddd;border:1px solid #24242f;border-radius:10px;font-size:15px;cursor:pointer;margin-top:6px}
+.btn.red{background:#2a0a0d;color:#ff6b6b;border-color:#3d0000}
+.btn.acc{background:#e0141b;color:#fff;border:none;font-weight:bold}
+.sw{display:flex;justify-content:space-between;align-items:center;padding:8px 0}
+.sw input{width:22px;height:22px;accent-color:#e0141b}
+#drop{border:2px dashed #333;border-radius:12px;padding:22px;text-align:center;color:#666;font-size:14px;margin-top:8px}
+#drop.hov{border-color:#e0141b;color:#e0141b}
+#toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#1b4332;color:#95d5b2;padding:10px 18px;border-radius:10px;display:none;font-size:14px;z-index:9}
+#toast.err{background:#3d0000;color:#ff6b6b}
+.bar{height:10px;background:#1a1a26;border-radius:5px;overflow:hidden;margin-top:4px}
+.bar>div{height:100%;background:#46dc5a}
+.tag{font-size:11px;color:#e0141b;border:1px solid #3d0000;border-radius:6px;padding:1px 6px;margin-left:6px}
+</style></head><body>
+<h1>SHARINGAN</h1>
+<div class="sel" id="sel"></div>
+<div class="tabs" id="tabs"></div>
+<div id="view"></div>
+<div id="toast"></div>
+<script>
+const T=['Info','Playback','Image','Look','System'];
+let tab=0,st=null,mesh=null,target='',tmr=null;
+let wifiNets=[],selSsid='',wifiPw='',wifiScanning=false;
+let clipOv=null,clipOvName='';
+const KIND=['info','clip','scene'];
+const $=id=>document.getElementById(id);
+function toast(m,err){const t=$('toast');t.textContent=m;t.className=err?'err':'';t.style.display='block';setTimeout(()=>t.style.display='none',2200)}
+async function api(p,body){try{const r=await fetch(p,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});if(!r.ok)throw new Error(await r.text());return await r.json()}catch(e){toast(e.message||'request failed',1);throw e}}
+async function refresh(){try{[st,mesh]=await Promise.all([api('/api/status'),api('/api/mesh')]);if(!target)target=mesh.self;render()}catch(e){}}
+// self-only POST (wifi, reboot): no target
+function post(p,b,msg){api(p,b).then(()=>{if(msg)toast(msg);refresh()})}
+// targeted POST: routes to the selected board (or "all")
+function tpost(p,b,msg){api(p,Object.assign({target:target},b||{})).then(()=>{if(msg)toast(msg);refresh()})}
+function setTab(i){tab=i;render();refresh()}   /* pull fresh board state on switch */
+function fmtUp(s){const h=(s/3600)|0,m=((s/60)%60)|0;return h+'h '+m+'m'}
+const WS=['off','starting...','AP up','connecting...','connected','portal (join setup AP)','failed'];
+function boards(){return mesh&&mesh.boards?mesh.boards:[]}
+function online(){return boards().filter(b=>b.online)}
+function cur(){const bs=boards();return bs.find(b=>b.id==target)||bs.find(b=>b.self)||bs[0]||null}
+function isAll(){return target=='all'}
+function isRemote(){const b=cur();return isAll()||(b&&!b.self)}
+
+function renderSel(){
+ const bs=boards();
+ let pills=bs.map(b=>{
+  const nm=(b.self?'This eye':b.name.replace('SharinganEye-',''))+(b.self?'':'');
+  const play=b.playing?(' &middot; '+b.playing):'';
+  return `<button class="${target==b.id?'on':''}" onclick="target='${b.id}';render()">
+   <span class="dot ${b.online?'':'off'}"></span>${b.self?'This eye':b.id}${play}</button>`}).join('');
+ pills+=`<button class="${isAll()?'on':''}" onclick="target='all';render()">All eyes</button>`;
+ $('sel').innerHTML=`<div class="hd"><span>Controlling</span><span>${online().length} eye${online().length==1?'':'s'} online</span></div>
+  <div class="pills">${pills}</div>`;
+}
+
+function render(){
+ renderSel();
+ $('tabs').innerHTML=T.map((t,i)=>`<button class="${i==tab?'on':''}" onclick="setTab(${i})">${t}</button>`).join('');
+ const v=$('view');
+ if(!st||!mesh){v.innerHTML='<div class="card">loading...</div>';return}
+ const b=cur();
+ const remote=isRemote(), tgtName=isAll()?'all eyes':(b?(b.self?'this eye':b.id):'?');
+ if(tab==0){ // Info -- about the board you're connected to
+  const bt=st.bat,w=st.wifi;
+  v.innerHTML=`<div class="card"><h3>This device</h3>
+  <div class="row"><span class="k">Firmware</span><span>${st.fw}</span></div>
+  <div class="row"><span class="k">Built</span><span>${st.build_date} ${st.build_time}</span></div>
+  <div class="row"><span class="k">Board</span><span>${st.board}</span></div>
+  <div class="row"><span class="k">Uptime</span><span>${fmtUp(st.uptime_s)}</span></div></div>
+  <div class="card"><h3>Battery</h3>
+  <div class="row"><span class="k">${bt.present?(bt.charging?'Charging':'On battery'):'No battery'}</span>
+  <span>${bt.present?bt.pct+'%  '+(bt.mv/1000).toFixed(2)+'V':''}</span></div>
+  ${bt.present?`<div class="bar"><div style="width:${bt.pct}%;background:${bt.pct>40?'#46dc5a':bt.pct>15?'#ffaa28':'#ff3c32'}"></div></div>`:''}</div>
+  <div class="card"><h3>WiFi</h3>
+  <div class="row"><span class="k">Status</span><span>${WS[w.state]||w.state}</span></div>
+  <div class="row"><span class="k">Network</span><span>${w.ssid||'-'}</span></div>
+  <div class="row"><span class="k">IP</span><span>${w.ip||'-'}</span></div>
+  ${w.rssi?`<div class="row"><span class="k">Signal</span><span>${w.rssi} dBm</span></div>`:''}</div>
+  <div class="card"><h3>Mesh</h3>
+  ${boards().map(x=>`<div class="row"><span class="k">${x.self?'This eye':x.id}${x.online?'':' (offline)'}</span>
+   <span>${x.playing||'-'}</span></div>`).join('')}
+  ${online().length<2?'<div class="note">Power on another eye to control them together.</div>':''}</div>
+  ${(function(){const peers=boards().filter(b=>!b.self&&b.online&&b.ip);return peers.length?
+   '<div class="card"><h3>Connected eyes</h3>'+peers.map(b=>
+    `<div class="row"><a href="http://${b.ip}" style="color:#e0141b;text-decoration:none">${b.name} <span style="color:#888">${b.board}</span></a></div>`
+   ).join('')+'</div>':'';})()}`;
+ }else if(tab==1){ // Playback -> selected board
+  if(isAll()){v.innerHTML=playbackAll();return}
+  if(!b){v.innerHTML='<div class="card">no board</div>';return}
+  const clips=b.clips||[];
+  v.innerHTML=`<div class="card"><h3>Scenes ${remote?`<span class="tag">${tgtName}</span>`:''}</h3><div class="grid">${['tomoe1','tomoe2','tomoe3','mangekyou','itachi','rinnegan','tomoerin','byakugan'].map((s,i)=>
+   `<button class="${b.playing_kind==2&&b.playing==s?'on':''}" onclick="tpost('/api/scene',{id:${i}},'scene: ${s}')">${s}</button>`).join('')}</div></div>
+  <div class="card"><h3>Clips${b.self&&b.storage?` <span class="note" style="float:right;font-size:.85em">${(b.storage.kb_free/1024).toFixed(1)}/${(b.storage.kb_total/1024).toFixed(1)} MB free</span>`:''}</h3>
+  ${clips.length?`<div class="list">${clips.map(c=>{
+   const cs=c.replace(/'/g,"\\'");
+   return `<div class="list-item"><button class="play ${b.playing_kind==1&&b.playing==c?'on':''}" onclick="tpost('/api/clip',{name:'${cs}'},'playing ${c}')">${c}</button>${b.self?`<button class="del-btn" onclick="deleteClip('${cs}')" title="Delete">✕</button>`:''}</div>`;
+  }).join('')}</div>`
+   :'<div class="note">no clips on this eye</div>'}
+  <div class="grid" style="margin-top:8px">
+  <button onclick="tpost('/api/step',{delta:-1})">&#9664; prev</button>
+  <button onclick="tpost('/api/step',{delta:1})">next &#9654;</button></div>
+  <div class="grid" style="margin-top:8px">
+  <button class="btn${st.paused?' on':''}" onclick="tpost('/api/pause',{paused:${!st.paused}},st.paused?'resumed':'paused')">${st.paused?'&#9654; Resume':'&#9646;&#9646; Pause'}</button>
+  <button class="btn acc" onclick="tpost('/api/sync',{},'synced')">&#9654;&#9654; Sync</button></div>
+  <button class="btn" style="margin-top:8px" onclick="tpost('/api/screen',{index:0},'info screen')">Show info screen</button></div>
+  <div class="card"><h3>Startup clip</h3>
+  <div class="note">Plays at power-on. "Info screen" boots to the info page.</div>
+  <select onchange="post('/api/startup',{target:target,name:this.value},'startup set')">
+   <option value="" ${!b.startup?'selected':''}>Info screen (none)</option>
+   ${clips.map(c=>`<option value="${c}" ${b.startup==c?'selected':''}>${c}</option>`).join('')}
+  </select></div>
+  ${b.self?`<div class="card"><h3>Upload clip</h3>
+   <div id="drop">drop .eyv here or tap to upload<input type="file" id="file" accept=".eyv" style="display:none"></div></div>`
+   :`<div class="card"><h3>Upload clip</h3><div class="note">Clip files can't travel over the mesh. To add clips to ${b.name}, connect to its own WiFi (<b>${b.name}</b>) and open this page there.</div></div>`}`;
+  if(b.self)wireDrop();
+ }else if(tab==2){ // Image
+  if(!b){v.innerHTML='<div class="card">no board</div>';return}
+  // Auto-load per-clip override when we enter the tab and a clip is playing
+  if(b.playing_kind==1&&b.playing&&b.playing!=clipOvName){loadClipOv(b.playing)}
+  const gx=isAll()?0:b.coff_x||0,gy=isAll()?0:b.coff_y||0,gr=isAll()?0:b.crot||0;
+  // Per-clip override card (only when a clip is playing on THIS eye)
+  const showClipCard=b.playing_kind==1&&b.playing&&!isAll()&&b.self;
+  const ov=clipOv&&clipOvName==b.playing?clipOv:{off_x:gx,off_y:gy,rot_deg:gr,scale_pct:isAll()?100:b.scale,flip_h:0,flip_v:0};
+  const clipCard=showClipCard?`<div class="card"><h3>Override for: <span style="color:#e0141b">${b.playing}</span>${ov.has_override?'&nbsp;<span class="tag">saved</span>':''}</h3>
+  <div class="note">These settings apply to this clip only and are saved to flash.</div>
+  <div class="slider"><label><span>X offset px</span><span id="co_xv">${ov.off_x}</span></label>
+  <input type="range" id="co_x" min="-200" max="200" value="${ov.off_x}" oninput="$('co_xv').textContent=this.value"></div>
+  <div class="slider"><label><span>Y offset px</span><span id="co_yv">${ov.off_y}</span></label>
+  <input type="range" id="co_y" min="-200" max="200" value="${ov.off_y}" oninput="$('co_yv').textContent=this.value"></div>
+  <div class="slider"><label><span>Rotation °</span><span id="co_rv">${ov.rot_deg}</span></label>
+  <input type="range" id="co_r" min="0" max="359" value="${ov.rot_deg}" oninput="$('co_rv').textContent=this.value"></div>
+  <div class="slider"><label><span>Scale % (0=global)</span><span id="co_sv">${ov.scale_pct}</span></label>
+  <input type="range" id="co_s" min="0" max="130" value="${ov.scale_pct}" oninput="$('co_sv').textContent=this.value"></div>
+  <div class="sw"><span>Flip H (per-clip)</span><input type="checkbox" id="co_fh" ${ov.flip_h?'checked':''}></div>
+  <div class="sw"><span>Flip V (per-clip)</span><input type="checkbox" id="co_fv" ${ov.flip_v?'checked':''}></div>
+  <button class="btn acc" onclick="saveClipOv('${b.playing.replace(/'/g,"\\'")}')">Save for this clip</button>
+  ${ov.has_override?`<button class="btn" onclick="clearClipOv('${b.playing.replace(/'/g,"\\'")}')">Use global settings</button>`:''}
+  </div>`:'';
+  v.innerHTML=`<div class="card"><h3>Orientation ${remote?`<span class="tag">${tgtName}</span>`:''}</h3>
+  <div class="sw"><span>Flip horizontal</span><input type="checkbox" ${b.fliph?'checked':''} onchange="tpost('/api/flip',{h:this.checked?1:0,v:${b.flipv?1:0}})"></div>
+  <div class="sw"><span>Flip vertical</span><input type="checkbox" ${b.flipv?'checked':''} onchange="tpost('/api/flip',{h:${b.fliph?1:0},v:this.checked?1:0})"></div></div>
+  <div class="card"><h3>Image</h3>
+  ${sl('Eye size %','scale',isAll()?100:b.scale,20,130)}
+  ${slB('Brightness %',isAll()?80:b.brightness,5,100)}
+  ${sl('Speed %','speed',isAll()?100:b.speed,10,400)}</div>
+  <div class="card"><h3>GIF position (global)</h3>
+  <div class="note">Applies to all clips without a per-clip override.</div>
+  ${sl('X offset px','coff_x',gx,-200,200)}
+  ${sl('Y offset px','coff_y',gy,-200,200)}
+  ${sl('Rotation °','crot',gr,0,359)}</div>
+  ${clipCard}`;
+ }else if(tab==3){ // Look
+  if(!b){v.innerHTML='<div class="card">no board</div>';return}
+  const co=b.color||{r:224,g:20,b:27};
+  const hex='#'+[co.r,co.g,co.b].map(x=>(+x).toString(16).padStart(2,'0')).join('');
+  v.innerHTML=`<div class="card"><h3>Color ${remote?`<span class="tag">${tgtName}</span>`:''}</h3>
+  <input type="color" value="${hex}" onchange="setColor(this.value)"></div>
+  <div class="card"><h3>Eye behavior</h3>
+  ${sl('Blink gap ms (0=off)','blink',b.blink||0,0,15000,500)}
+  ${sl('Gaze wander px','gaze',b.gaze||0,0,24)}
+  ${sl('Flare gap ms (0=off)','flare',b.flare||0,0,30000,1000)}
+  ${sl('Spin ms/rev','sspin',b.sspin||0,-20000,20000,500)}
+  ${sl('Pupil px','pupil',b.pupil||20,6,40)}</div>
+  <div class="card"><h3>Flick gesture</h3>
+  <div class="sw"><span>Enabled</span><input type="checkbox" ${b.flick?'checked':''} onchange="tpost('/api/flick',{on:this.checked?1:0})"></div>
+  ${sl('Trigger deg/s','fhi',b.fhi||400,100,1500,50)}</div>`;
+ }else{ // System
+  v.innerHTML=`<div class="card"><h3>Parameters <span class="tag">${tgtName}</span></h3>
+  <div class="note">Save writes the current settings to the selected eye's flash so they survive reboot.</div>
+  <button class="btn acc" onclick="tpost('/api/persist',{action:'save'},'saved to flash')">Save settings</button>
+  <button class="btn" onclick="tpost('/api/persist',{action:'load'},'loaded')">Load saved</button>
+  <button class="btn" onclick="tpost('/api/persist',{action:'reset'},'defaults restored')">Reset to defaults</button></div>
+  <div class="card"><h3>Join a WiFi network</h3>
+  <div class="note">Applies to this device (the one serving this page).</div>
+  <button class="btn" onclick="scanWifi()">${wifiScanning?'Scanning...':'Scan for networks'}</button>
+  ${wifiNets.length?`<div class="list" style="margin-top:8px">${wifiNets.map(n=>
+   `<button class="${selSsid==n.s?'on':''}" onclick="pickNet('${n.s.replace(/'/g,"\\'")}')">${n.s} <span style="color:#666">${n.r} dBm</span></button>`).join('')}</div>`:''}
+  ${selSsid?`<input type="text" readonly value="${selSsid}">
+  <input id="wpw" type="password" placeholder="Password" value="${wifiPw}" oninput="wifiPw=this.value">
+  <button class="btn acc" onclick="joinWifi()">Save & connect</button>`:''}</div>
+  <div class="card"><h3>This device</h3>
+  <button class="btn red" onclick="if(confirm('Forget saved WiFi?'))post('/api/wifi/forget',{},'WiFi forgotten')">Forget WiFi</button>
+  <button class="btn red" onclick="if(confirm('Reboot the eye?'))post('/api/reboot',{},'rebooting...')">Reboot</button></div>
+  <div class="card"><h3>Firmware update (OTA)</h3>
+  <div class="note">Upload a .bin built for this board. The eye flashes and reboots automatically. Only updates this device.</div>
+  <div id="ota-drop" style="border:2px dashed #333;border-radius:12px;padding:22px;text-align:center;color:#666;font-size:14px;margin-top:8px;cursor:pointer">
+   tap to select .bin file<input type="file" id="ota-file" accept=".bin" style="display:none"></div>
+  <div id="ota-bar" style="display:none;margin-top:8px"><div class="bar"><div id="ota-bar-fill" style="width:0%;background:#e0141b;height:100%"></div></div></div>
+  <div id="ota-status" style="font-size:13px;color:#888;margin-top:6px"></div></div>
+  <div class="card"><h3>Developer</h3>
+  <div class="note">Live log output from the device (refreshes every 1.5 s).</div>
+  <a href="/dev/console" target="_blank" style="display:inline-block;margin-top:6px;padding:8px 16px;background:#1e1e2e;border:1px solid #333;border-radius:8px;color:#7ecfff;font-size:13px;text-decoration:none">&#128196; Open device console</a></div>`;
+  wireOta();
+ }
+}
+
+// "All eyes" playback: fan a scene/clip/action out to every board by name.
+function playbackAll(){
+ return `<div class="card"><h3>Scenes <span class="tag">all eyes</span></h3><div class="grid">${['tomoe1','tomoe2','tomoe3','mangekyou','itachi','rinnegan','tomoerin','byakugan'].map((s,i)=>
+  `<button onclick="tpost('/api/scene',{id:${i}},'scene: ${s} (all)')">${s}</button>`).join('')}</div></div>
+ <div class="card"><h3>Playback</h3>
+ <div class="grid">
+ <button onclick="tpost('/api/step',{delta:-1})">&#9664; prev</button>
+ <button onclick="tpost('/api/step',{delta:1})">next &#9654;</button></div>
+ <button class="btn" onclick="tpost('/api/clip',{action:'play'},'play (all)')">Play clips</button>
+ <button class="btn" onclick="tpost('/api/screen',{index:0},'info (all)')">Show info screen</button>
+ <button class="btn acc" onclick="tpost('/api/sync',{},'synced all eyes')">&#9654;&#9654; Sync all eyes</button>
+ <div class="note">Sync restarts all eyes' current clip at the same moment. Selecting a clip by name mirrors it on every eye that has a clip with that name.</div></div>`;
+}
+
+function sl(lbl,key,val,min,max,step){return `<div class="slider"><label><span>${lbl}</span><span id="v_${key}">${val}</span></label>
+<input type="range" min="${min}" max="${max}" step="${step||1}" value="${val}"
+oninput="$('v_${key}').textContent=this.value" onchange="setParam('${key}',+this.value)"></div>`}
+function slB(lbl,val,min,max){return `<div class="slider"><label><span>${lbl}</span><span id="v_bright">${val}</span></label>
+<input type="range" min="${min}" max="${max}" value="${val}"
+oninput="$('v_bright').textContent=this.value" onchange="tpost('/api/brightness',{pct:+this.value})"></div>`}
+function setParam(key,val){tpost('/api/param',{key:key,value:val})}
+function setColor(hex){tpost('/api/color',{r:parseInt(hex.substr(1,2),16),g:parseInt(hex.substr(3,2),16),b:parseInt(hex.substr(5,2),16)},'recolored')}
+async function loadClipOv(name){try{clipOv=await api('/api/clip_param?name='+encodeURIComponent(name));clipOvName=name;render()}catch(e){}}
+async function saveClipOv(name){const el=id=>$('co_'+id);const ov={name,off_x:+el('x').value,off_y:+el('y').value,rot_deg:+el('r').value,scale_pct:+el('s').value,flip_h:el('fh').checked?1:0,flip_v:el('fv').checked?1:0};await api('/api/clip_param',ov);clipOv=ov;clipOvName=name;toast('saved for '+name)}
+async function clearClipOv(name){await api('/api/clip_param',{name,clear:true});clipOv={off_x:0,off_y:0,rot_deg:0,scale_pct:0,flip_h:0,flip_v:0,has_override:false};clipOvName=name;toast('using global settings');render()}
+async function scanWifi(){wifiScanning=true;render();try{wifiNets=await api('/api/wifi/scan')||[]}catch(e){wifiNets=[]}wifiScanning=false;render()}
+function pickNet(s){selSsid=s;wifiPw='';render()}
+function joinWifi(){if(!selSsid)return;api('/api/wifi/connect',{ssid:selSsid,password:wifiPw}).then(()=>{toast('saved — the eye reconnects...');selSsid='';wifiNets=[]})}
+function wireDrop(){
+ const d=$('drop'),f=$('file');if(!d)return;
+ d.onclick=()=>f.click();
+ f.onchange=()=>{if(f.files[0])upload(f.files[0])};
+ d.ondragover=e=>{e.preventDefault();d.classList.add('hov')};
+ d.ondragleave=()=>d.classList.remove('hov');
+ d.ondrop=e=>{e.preventDefault();d.classList.remove('hov');if(e.dataTransfer.files[0])upload(e.dataTransfer.files[0])};
+}
+function deleteClip(name){
+ if(!confirm('Delete '+name+'?\nThis cannot be undone.'))return;
+ api('/api/delete',{name:name}).then(r=>{toast('deleted '+name);refresh()}).catch(()=>toast('delete failed',1));
+}
+function upload(file){
+ if(!file.name.toLowerCase().endsWith('.eyv')){toast('.eyv files only',1);return}
+ const d=$('drop');
+ const xhr=new XMLHttpRequest();
+ xhr.open('POST','/api/upload?name='+encodeURIComponent(file.name));
+ xhr.timeout=180000;
+ xhr.upload.onprogress=e=>{if(e.lengthComputable&&d){
+  const p=Math.round(e.loaded*100/e.total);
+  d.innerHTML='uploading '+file.name+' &mdash; '+p+'%'+
+   '<div class="bar" style="margin-top:8px"><div style="width:'+p+'%;background:#e0141b"></div></div>'}};
+ xhr.onload=()=>{if(xhr.status==200){toast('uploaded '+file.name);refresh()}
+  else{toast('upload failed: '+xhr.responseText,1);render()}};
+ xhr.onerror=xhr.ontimeout=()=>{toast('upload failed (connection)',1);render()};
+ xhr.send(file);
+}
+function wireOta(){
+ const d=$('ota-drop'),f=$('ota-file');if(!d)return;
+ d.onclick=()=>f.click();
+ f.onchange=()=>{if(f.files[0])uploadOta(f.files[0])};
+}
+function uploadOta(file){
+ if(!file.name.toLowerCase().endsWith('.bin')){toast('.bin files only',1);return}
+ const bar=$('ota-bar'),fill=$('ota-bar-fill'),status=$('ota-status'),drop=$('ota-drop');
+ if(bar)bar.style.display='block';
+ if(status)status.textContent='Uploading…';
+ const xhr=new XMLHttpRequest();
+ xhr.open('POST','/api/ota');
+ xhr.setRequestHeader('Content-Type','application/octet-stream');
+ xhr.timeout=300000;
+ xhr.upload.onprogress=e=>{if(e.lengthComputable){
+  const p=Math.round(e.loaded*100/e.total);
+  if(fill)fill.style.width=p+'%';
+  if(status)status.textContent=p<100?'Uploading '+file.name+' — '+p+'%':'Verifying image… please wait';}};
+ xhr.onload=()=>{
+  if(xhr.status==200){
+   if(status)status.textContent='Flashed! Rebooting in a moment…';
+   if(fill){fill.style.width='100%';fill.style.background='#46dc5a';}
+   toast('OTA ok — rebooting');
+  }else{
+   if(status)status.textContent='Failed: '+xhr.responseText;
+   toast('OTA failed: '+xhr.responseText,1);
+  }};
+ xhr.onerror=xhr.ontimeout=()=>{if(status)status.textContent='Connection error';toast('OTA failed (connection)',1)};
+ xhr.send(file);
+}
+// Auto-refresh only on Info (control tabs would clobber a slider mid-drag);
+// every command calls refresh() anyway, so control views stay current on use.
+refresh();tmr=setInterval(()=>{if(tab==0)refresh()},3000);
+</script></body></html>

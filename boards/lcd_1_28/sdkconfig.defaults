@@ -1,0 +1,36 @@
+# Waveshare ESP32-S3-Touch-LCD-1.28 (ESP32-S3R2: 2MB quad PSRAM, 16MB flash).
+CONFIG_IDF_TARGET="esp32s3"
+
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+
+# Partition CSV path is relative to the project root (this repo's top folder).
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="boards/lcd_1_28/partitions.csv"
+CONFIG_PARTITION_TABLE_FILENAME="boards/lcd_1_28/partitions.csv"
+
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+CONFIG_FREERTOS_HZ=1000
+
+# This board has quad (not octal) PSRAM, and only 2MB of it.
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_QUAD=y
+CONFIG_SPIRAM_SPEED_80M=y
+
+# Long filenames for the FATFS 'anim' clip partition (web uploads keep their
+# original names, e.g. 01_sharingan.eyv).
+CONFIG_FATFS_LFN_HEAP=y
+
+# LVGL (same tuning as the AMOLED board, minus BSP-specific keys).
+CONFIG_LV_USE_CLIB_MALLOC=y
+CONFIG_LV_USE_CLIB_STRING=y
+CONFIG_LV_USE_CLIB_SPRINTF=y
+CONFIG_LV_DEF_REFR_PERIOD=15
+CONFIG_LV_OS_FREERTOS=y
+CONFIG_LV_DRAW_SW_DRAW_UNIT_CNT=2
+CONFIG_LV_ATTRIBUTE_FAST_MEM_USE_IRAM=y
+
+# Larger Montserrat sizes for the native info screen (title + battery %).
+CONFIG_LV_FONT_MONTSERRAT_20=y
+CONFIG_LV_FONT_MONTSERRAT_28=y
