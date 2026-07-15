@@ -1,5 +1,6 @@
 #include "eye_clip_params.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <strings.h>
 
@@ -20,8 +21,23 @@ typedef struct __attribute__((packed)) {
     int8_t   flip_v;
 } clip_nvs_t;
 
+/* FNV-1a 32-bit hash: turns an arbitrarily long filename into a stable 32-bit
+ * value so distinct names never collide on the (max 15-char) NVS key. */
+static uint32_t fnv1a(const char *s)
+{
+    uint32_t h = 2166136261u;
+    for (; *s; ++s) {
+        h ^= (uint8_t)*s;
+        h *= 16777619u;
+    }
+    return h;
+}
+
 /* Derive a ≤15-char NVS key from a clip filename.
- * Strategy: strip directory prefix and .eyv extension, keep first 15 chars. */
+ * Strip directory prefix and .eyv extension, then key = up-to-6 readable
+ * characters + 8-hex hash of the FULL name. Keying on just the first 15 chars
+ * (the old scheme) collided whenever two clips shared a 15-char prefix, e.g.
+ * "obito_skin_eye_sharinga..." and "obito_skin_eye_rinnegan..." -> same slot. */
 static void make_key(const char *clip_name, char key[16])
 {
     const char *b = strrchr(clip_name, '/');
@@ -33,8 +49,18 @@ static void make_key(const char *clip_name, char key[16])
     if (L > 4 && strcasecmp(tmp + L - 4, ".eyv") == 0) {
         tmp[L - 4] = '\0';
     }
-    strncpy(key, tmp, 15);
-    key[15] = '\0';
+    uint32_t hash = fnv1a(tmp);
+    char pre[7];
+    size_t i = 0;
+    for (const char *p = tmp; *p && i < 6; ++p) {
+        char c = *p;
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9')) {
+            pre[i++] = c;
+        }
+    }
+    pre[i] = '\0';
+    snprintf(key, 16, "%s%08lx", pre, (unsigned long)hash);
 }
 
 bool eye_clip_override_load(const char *clip_name, eye_clip_override_t *out)
