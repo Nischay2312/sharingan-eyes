@@ -6,10 +6,10 @@ idf_component_register(
     INCLUDE_DIRS
         "."
     REQUIRES
-        eye_core      # shared, board-agnostic engine (scenes + imu + loop)
-        eye_web       # shared WiFi + web control (clip dir/brightness injected)
-        eye_ui_lvgl   # shared native LVGL info screen (eye_ui contract)
+        eye_core      # shared, board-agnostic engine (scenes + imu + console + loop)
+        eye_web       # WiFi + web control (clip dir/brightness/storage injected)
         nvs_flash
         driver        # i2c_master for bsp_i2c_get_handle()
+        esp_lcd       # direct panel draw (esp_lcd_panel_draw_bitmap / io callbacks)
         fatfs)        # esp_vfs_fat_info for storage stats callback
-# Note: the Waveshare BSP and lvgl are added automatically from idf_component.yml.
+# Note: the Waveshare BSP is added automatically from idf_component.yml.
